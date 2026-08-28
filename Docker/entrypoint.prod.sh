@@ -27,7 +27,7 @@ fi
 mkdir -p public/uploads/listings var
 chown -R www-data:www-data public/uploads var config/jwt 2>/dev/null || true
 
-php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=prod
 php bin/console cache:clear --env=prod --no-warmup
 php bin/console cache:warmup --env=prod
 

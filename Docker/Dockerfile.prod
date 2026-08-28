@@ -44,6 +44,7 @@ COPY . .
 # is missing" at boot. Confirmed via Railway build logs:
 #   "The 'symfony/runtime' plugin was not loaded as plugins are disabled."
 ENV COMPOSER_ALLOW_SUPERUSER=1
+ENV APP_ENV=prod
 
 RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
     && ls -la vendor/autoload_runtime.php \
@@ -52,8 +53,6 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interactio
 
 COPY Docker/entrypoint.prod.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && sed -i 's/\r$//' /entrypoint.sh
-
-ENV APP_ENV=prod
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["apache2-foreground"]
