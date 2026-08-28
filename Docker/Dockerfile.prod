@@ -13,12 +13,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod rewrite
-# Defensive: make sure only one MPM is active (Railway crashed once with
-# "More than one MPM loaded", not reproducible in a local build -- this is
-# a harmless no-op if these were never enabled in the first place).
-RUN (a2dismod mpm_event || true) \
-    && (a2dismod mpm_worker || true) \
-    && (a2enmod mpm_prefork || true)
+# The base php:8.4-apache image ships with BOTH mpm_event and mpm_prefork
+# enabled in /etc/apache2/mods-enabled/ (confirmed via `railway ssh` into
+# the actual failing container) -- Apache refuses to start with two MPMs
+# loaded ("More than one MPM loaded"). `a2dismod mpm_event` alone silently
+# failed to remove it (swallowed by error handling, real cause unclear), so
+# delete the symlinks directly instead of trusting a2dismod's exit status.
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
+    && rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
+    && a2enmod mpm_prefork
 
 # Written as a literal path rather than relying on Apache resolving
 # ${APACHE_DOCUMENT_ROOT} from the environment at parse time -- that
