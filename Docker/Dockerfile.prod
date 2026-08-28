@@ -36,13 +36,16 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# The "echo cache-bust" line forces this layer to actually re-run instead of
-# silently reusing a stale cached layer from an earlier, broken build (seen
-# on Railway: "composer install" kept showing as cached/0ms across deploys
-# even after Dockerfile changes). Safe to remove once a deploy is confirmed
-# healthy again.
-RUN echo "cache-bust 2026-08-28-1" \
-    && composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
+# Composer refuses to run plugins as root/superuser unless explicitly told
+# to (safety default) -- we run composer install as root in this image, and
+# symfony/runtime ships its vendor/autoload_runtime.php generator AS a
+# Composer plugin, so without this it silently gets skipped, leaving that
+# file missing and bin/console/public/index.php throwing "Symfony Runtime
+# is missing" at boot. Confirmed via Railway build logs:
+#   "The 'symfony/runtime' plugin was not loaded as plugins are disabled."
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
     && ls -la vendor/autoload_runtime.php \
     && mkdir -p var public/uploads/listings config/jwt \
     && chown -R www-data:www-data /var/www/html
