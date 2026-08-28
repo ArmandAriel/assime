@@ -1,5 +1,6 @@
 # Production image (Railway). Unlike Docker/Dockerfile (dev, bind-mounted
 # source + manual composer install), this bakes the app in at build time.
+# build-marker: 2026-08-28T13:06 (forces a fresh Railway build/snapshot)
 FROM php:8.4-apache
 
 RUN apt-get update && apt-get install -y \
