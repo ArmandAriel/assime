@@ -31,4 +31,10 @@ php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migratio
 php bin/console cache:clear --env=prod --no-warmup
 php bin/console cache:warmup --env=prod
 
+# Defensive: a stale PID file left over from a previous crashed run on the
+# same container/volume can make Apache think it's already running and
+# misbehave on start (seen once as "More than one MPM loaded", not
+# reproducible locally -- this guards against that class of issue anyway).
+rm -f /var/run/apache2/apache2.pid
+
 exec "$@"

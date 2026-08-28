@@ -12,6 +12,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod rewrite
+# Defensive: make sure only one MPM is active (Railway crashed once with
+# "More than one MPM loaded", not reproducible in a local build -- this is
+# a harmless no-op if these were never enabled in the first place).
+RUN (a2dismod mpm_event || true) \
+    && (a2dismod mpm_worker || true) \
+    && (a2enmod mpm_prefork || true)
 
 # Written as a literal path rather than relying on Apache resolving
 # ${APACHE_DOCUMENT_ROOT} from the environment at parse time -- that
