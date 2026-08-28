@@ -13,10 +13,15 @@ RUN apt-get update && apt-get install -y \
 
 RUN a2enmod rewrite
 
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
-    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
-    && printf '<Directory "${APACHE_DOCUMENT_ROOT}">\n    AllowOverride All\n    Require all granted\n</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
+# Written as a literal path rather than relying on Apache resolving
+# ${APACHE_DOCUMENT_ROOT} from the environment at parse time -- that
+# substitution silently failed here (apache2ctl -S kept reporting
+# "/var/www/html" instead of "/var/www/html/public"), which meant
+# AllowOverride never applied to the real document root and .htaccess
+# (mod_rewrite) was silently ignored -- every clean URL 404'd.
+RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
+    && printf '<Directory "/var/www/html/public">\n    AllowOverride All\n    Require all granted\n</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
     && a2enconf symfony
 
 RUN { \

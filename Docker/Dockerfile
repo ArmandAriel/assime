@@ -12,10 +12,13 @@ RUN apt-get update && apt-get install -y \
 RUN a2enmod rewrite
 
 # 3. Changement du DocumentRoot pour pointer vers le dossier /public de Symfony
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-RUN printf '<Directory "${APACHE_DOCUMENT_ROOT}">\n    AllowOverride All\n    Require all granted\n</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
+# Chemin ecrit en dur (pas de ${APACHE_DOCUMENT_ROOT}) : cette substitution ne
+# se resolvait pas a l'execution en prod (apache2ctl -S continuait a
+# rapporter /var/www/html), ce qui cassait AllowOverride/.htaccess et donc
+# mod_rewrite -- toutes les URLs propres renvoyaient 404. Voir Dockerfile.prod.
+RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+RUN printf '<Directory "/var/www/html/public">\n    AllowOverride All\n    Require all granted\n</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
     && a2enconf symfony
 
 # 4. Installation de Composer
