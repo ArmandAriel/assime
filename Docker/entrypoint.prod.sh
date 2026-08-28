@@ -33,8 +33,17 @@ php bin/console cache:warmup --env=prod
 
 # Defensive: a stale PID file left over from a previous crashed run on the
 # same container/volume can make Apache think it's already running and
-# misbehave on start (seen once as "More than one MPM loaded", not
-# reproducible locally -- this guards against that class of issue anyway).
+# misbehave on start.
 rm -f /var/run/apache2/apache2.pid
+
+# mpm_event stays enabled alongside mpm_prefork on the actual Railway
+# runtime no matter what the image build does to mods-enabled/ (confirmed
+# via `railway ssh`: removing the symlinks in the Dockerfile RUN step does
+# NOT persist to the running container, for reasons that don't fully make
+# sense given other build-time fixes in the same image do persist) --
+# Apache refuses to start with two MPMs loaded, so remove it here too, at
+# actual container boot, right before Apache starts.
+rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf
+rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf
 
 exec "$@"
