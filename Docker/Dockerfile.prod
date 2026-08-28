@@ -1,0 +1,44 @@
+# Production image (Railway). Unlike Docker/Dockerfile (dev, bind-mounted
+# source + manual composer install), this bakes the app in at build time.
+FROM php:8.4-apache
+
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    libicu-dev \
+    libzip-dev \
+    unzip \
+    git \
+    && docker-php-ext-install intl pdo pdo_pgsql opcache zip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN a2enmod rewrite
+
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
+    && printf '<Directory "${APACHE_DOCUMENT_ROOT}">\n    AllowOverride All\n    Require all granted\n</Directory>\n' > /etc/apache2/conf-available/symfony.conf \
+    && a2enconf symfony
+
+RUN { \
+    echo 'upload_max_filesize = 10M'; \
+    echo 'post_max_size = 12M'; \
+    echo 'opcache.enable = 1'; \
+    echo 'opcache.validate_timestamps = 0'; \
+    } > /usr/local/etc/php/conf.d/prod.ini
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+COPY . .
+
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
+    && mkdir -p var public/uploads/listings config/jwt \
+    && chown -R www-data:www-data /var/www/html
+
+COPY Docker/entrypoint.prod.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && sed -i 's/\r$//' /entrypoint.sh
+
+ENV APP_ENV=prod
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["apache2-foreground"]

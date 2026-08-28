@@ -1,0 +1,65 @@
+security:
+    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
+    password_hashers:
+        App\Entity\User: 'auto'
+
+    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
+
+    firewalls:
+        dev:
+            # Ensure dev tools and static assets are always allowed
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+
+        login:
+            pattern: ^/api/auth/login
+            stateless: true
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
+            json_login:
+                check_path: /api/auth/login
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: App\Security\LoginFailureHandler
+
+        api:
+            pattern: ^/api
+            stateless: true
+            jwt: ~
+            provider: app_user_provider
+
+        main:
+            lazy: true
+            provider: app_user_provider
+
+    # Note: Only the *first* matching rule is applied
+    access_control:
+        - { path: ^/api/doc, roles: PUBLIC_ACCESS }
+        - { path: ^/api/auth/(register|login|forgot-password|reset-password), roles: PUBLIC_ACCESS }
+        - { path: ^/api/auth/me, roles: ROLE_USER }
+        - { path: ^/api/favorites, roles: ROLE_USER }
+        - { path: ^/api/conversations, roles: ROLE_USER }
+        # Reference data (categories, regions, departments, cities, category
+        # attributes): readable by anyone, but only admins may create/edit/delete it.
+        - { path: ^/api/(category|region|department|city), roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/(category|region|department|city), roles: ROLE_ADMIN }
+        - { path: ^/api, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api, roles: ROLE_USER }
+
+when@test:
+    security:
+        password_hashers:
+            # Password hashers are resource-intensive by design to ensure security.
+            # In tests, it's safe to reduce their cost to improve performance.
+            App\Entity\User:
+                algorithm: auto
+                cost: 4 # Lowest possible value for bcrypt
+                time_cost: 3 # Lowest possible value for argon
+                memory_cost: 10 # Lowest possible value for argon

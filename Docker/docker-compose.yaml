@@ -1,0 +1,44 @@
+name: assime-be
+
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: assime_db
+    environment:
+      POSTGRES_DB: ${APP_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: ..
+      dockerfile: Docker\Dockerfile
+    container_name: assime_app
+    depends_on:
+      - database
+      - mailpit
+    ports:
+      - "8070:80"
+    volumes:
+      - ..:/var/www/html
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${APP_NAME}?serverVersion=16&charset=utf8"
+      MAILER_DSN: "smtp://mailpit:1025"
+      FRONTEND_URL: "${FRONTEND_URL}"
+      MAILER_FROM: "${MAILER_FROM}"
+
+  # Dev-only fake SMTP server: catches every email the app sends instead of
+  # delivering it. Web UI (to read caught emails) at http://localhost:8025,
+  # JSON API at http://localhost:8025/api/v1/messages.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: assime_mailpit
+    ports:
+      - "8025:8025"
+
+volumes:
+  db_data:

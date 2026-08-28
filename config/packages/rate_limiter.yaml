@@ -1,0 +1,12 @@
+framework:
+    rate_limiter:
+        # Used explicitly in AuthController::register(), keyed by client IP.
+        register_ip:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+        # Used explicitly in AuthController::forgotPassword(), keyed by client IP.
+        forgot_password_ip:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
